@@ -1,0 +1,104 @@
+trigger: none
+#  batch: true
+#  branches:
+#   include:
+#   - refs/heads/release/*
+
+# pr:
+#  branches:
+#   include:
+#   - refs/heads/development
+#   - refs/heads/release/*
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+parameters:
+  - name: DeployToDevelopment
+    default: true
+    type: boolean
+
+stages:  
+  - stage: DeployToDevelopment
+    displayName: Deploy to Development
+    condition: eq('${{ parameters.DeployToDevelopment }}', 'true')
+    jobs:
+    - job: DEVDeploy
+      variables:
+       containerRegistry: '{azurecontainerRegistry}.azurecr.io'
+       azurecontainerRegistry: '{azurecontainerRegistry}'
+       containerAppEnv: '{AzureContainerAppEnv}'
+       resourceGroup: '{ResourceGroupofACE}'
+       repoName: 'dapr-mqtt'
+      displayName: Deploy to DEV
+      pool:
+        name: Azure Pipelines
+        vmImage: ubuntu-22.04
+      steps:
+      - task: replacetokens@5
+        inputs:
+          rootDirectory: 'MqttMessageHandler'
+          targetFiles: 'appsettings.json'
+          encoding: 'auto'
+          tokenPattern: 'custom'
+          tokenPrefix: '__'
+          tokenSuffix: '__'
+          writeBOM: true
+          actionOnMissing: 'warn'
+          keepToken: false
+          actionOnNoFiles: 'continue'
+          enableTransforms: false
+          useLegacyPattern: false
+          enableTelemetry: true
+        displayName: 'Replace AppSetting Secrets'
+      - task: NuGetToolInstaller@1
+        inputs:
+          versionSpec: 6.2
+          checkLatest: true        
+
+   
+      - task: NuGetCommand@2
+        inputs:
+          restoreSolution: '$(solution)'          
+        displayName: nuget restore
+        
+
+      - task: DotNetCoreCLI@2
+        inputs:        
+          command: 'build'
+          projects: '**/*.csproj'                    
+        displayName: build
+
+      - task: Docker@1
+        displayName: 'Build an image'
+        inputs:
+          azureSubscriptionEndpoint: '{SerivceConnectionName}'
+          azureContainerRegistry: $(containerRegistry)
+          useDefaultContext: false
+          buildContext: $(Build.Repository.LocalPath)
+          enforceDockerNamingConvention: false
+      - task: Docker@1
+        displayName: 'Push an image copy'
+        inputs:
+          azureSubscriptionEndpoint: '{SerivceConnectionName}'
+          azureContainerRegistry: $(containerRegistry)
+          command: Push an image    
+          useDefaultContext: false
+          buildContext: $(Build.Repository.LocalPath)
+          enforceDockerNamingConvention: false
+
+      - task: AzureContainerApps@1
+        inputs:
+          connectedServiceNameARM: '{SerivceConnectionName}'
+          appSourcePath: '$(System.DefaultWorkingDirectory)'
+          acrName: $(azurecontainerRegistry)
+          containerAppName: $(containerAppName)
+          containerAppEnvironment: $(containerAppEnv)
+          imageToDeploy: $(containerRegistry)/$(repoName):$(Build.BuildId)          
+          runtimeStack: dotnetcore:6.0
+          resourceGroup: $(resourceGroup)          
+          location: 'eastus2'          
+          environmentVariables: $(environmentVariables)
+        displayName: Deploy Dapr API 
+

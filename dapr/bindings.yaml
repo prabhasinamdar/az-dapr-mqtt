@@ -1,0 +1,34 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: mqttsconsumer
+spec:
+  type: bindings.mqtt3
+  version: v1
+  metadata:
+  - name: url
+    value: "ssl://host.domain[:port]"
+  - name: topic
+    value: "$share/{mqtt_topic}/#"
+  - name: retain
+    value: "false"
+  - name: cleanSession
+    value: "true"
+  - name: consumerID
+    value: "{uuid}"
+  - name: backoffMaxRetries
+    value: "4"
+  - name: route
+    value: "/mqttmessagehandler"  
+  - name: caCert
+    value: ""
+  - name: clientCert
+    secretKeyRef:
+        name: myMqttClientCert
+        key: myMqttClientCert
+  - name: clientKey
+    secretKeyRef:
+        name: myMqttClientKey
+        key: myMqttClientKey
+auth:
+  secretStore: secretstore
