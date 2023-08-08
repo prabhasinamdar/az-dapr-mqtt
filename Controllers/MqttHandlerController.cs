@@ -53,7 +53,7 @@ namespace MqttMessageHandler.Controllers
 
                 using var mqttpayload = new StreamReader(Request.Body);
                 var content = await mqttpayload.ReadToEndAsync();
-                var mqttPayloadModel = JsonConvert.DeserializeObject<IotDevicePropertyModel>(content);
+                var mqttPayloadModel = JsonConvert.DeserializeObject<IoTMqttPayloadModel>(content);
 
                 if (mqttPayloadModel != null && !string.IsNullOrEmpty(topicName))
                 {
